@@ -12,6 +12,8 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")
 app.use(
   cors({
     origin: (origin, callback) => {
+      // Izinkan semua origin ketika ALLOWED_ORIGINS kosong (mode dev),
+      // atau hanya origin yang terdaftar di ALLOWED_ORIGINS.
       if (
         !origin ||
         allowedOrigins.length === 0 ||
@@ -24,6 +26,9 @@ app.use(
     },
   })
 );
+
+// Pastikan preflight OPTIONS juga diproses oleh CORS
+app.options("*", cors());
 
 app.use(express.json());
 
@@ -49,57 +54,59 @@ app.get("/api/", (_req: Request, res: Response) => {
   res.json({ message: "API ImageKit jalan" });
 });
 
-app.post(
-  "/api/upload",
-  upload.single("file"),
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const apiSecret = process.env.API_SECRET;
-      const clientSecret =
-        (req.headers["x-api-secret"] as string | undefined) ||
-        (req.headers["authorization"] as string | undefined);
+const handleUpload = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const apiSecret = process.env.API_SECRET;
+    const clientSecret =
+      (req.headers["x-api-secret"] as string | undefined) ||
+      (req.headers["authorization"] as string | undefined);
 
-      if (!apiSecret) {
-        res
-          .status(500)
-          .json({ message: "API_SECRET belum dikonfigurasi di server" });
-        return;
-      }
-
-      if (!clientSecret || clientSecret !== apiSecret) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-      }
-
-      const file = req.file;
-      if (!file) {
-        res.status(400).json({ message: "File tidak ditemukan" });
-        return;
-      }
-
-      const imagekit = getImagekit();
-      const result = await imagekit.upload({
-        file: file.buffer,
-        fileName: file.originalname,
-        folder: "/uploads",
-      });
-
-      res.status(200).json({
-        message: "Upload berhasil",
-        data: result,
-      });
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Terjadi kesalahan yang tidak diketahui";
-      res.status(500).json({
-        message: "Terjadi kesalahan saat upload",
-        error: message,
-      });
+    if (!apiSecret) {
+      res
+        .status(500)
+        .json({ message: "API_SECRET belum dikonfigurasi di server" });
+      return;
     }
+
+    if (!clientSecret || clientSecret !== apiSecret) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ message: "File tidak ditemukan" });
+      return;
+    }
+
+    const imagekit = getImagekit();
+    const result = await imagekit.upload({
+      file: file.buffer,
+      fileName: file.originalname,
+      folder: "/uploads",
+    });
+
+    res.status(200).json({
+      message: "Upload berhasil",
+      data: result,
+    });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Terjadi kesalahan yang tidak diketahui";
+    res.status(500).json({
+      message: "Terjadi kesalahan saat upload",
+      error: message,
+    });
   }
-);
+};
+
+// Endpoint yang akan dipanggil dari frontend:
+// - /upload  (sesuai NUXT_PUBLIC_API_URL sekarang)
+// - /api/upload (kalau mau pakai prefix /api)
+app.post("/upload", upload.single("file"), handleUpload);
+app.post("/api/upload", upload.single("file"), handleUpload);
 
 export default function handler(
   req: express.Request,
