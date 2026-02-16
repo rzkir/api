@@ -38,8 +38,12 @@ app.use(
 
 app.use(express.json());
 
-app.get("/", (req: Request, res: Response) => {
+app.get("/api", (req: Request, res: Response) => {
   res.json({ message: "API ImageKit jalan" });
 });
 
-app.post("/upload", uploadMiddleware, uploadToImagekit);
+app.get("/api/", (req: Request, res: Response) => {
+  res.json({ message: "API ImageKit jalan" });
+});
+
+app.post("/api/upload", uploadMiddleware, uploadToImagekit);
