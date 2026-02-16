@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
@@ -36,6 +36,20 @@ app.use(
   })
 );
 
+// Upload routes MUST run before express.json() so multer gets raw multipart body
+const uploadWithErrorHandler = (req: Request, res: Response, next: NextFunction) => {
+  uploadMiddleware(req, res, (err: unknown) => {
+    if (err) {
+      const message = err instanceof Error ? err.message : "Upload gagal";
+      const status = message.includes("Tipe file") || message.includes("limit") ? 400 : 500;
+      return res.status(status).json({ message });
+    }
+    next();
+  });
+};
+app.post("/upload", uploadWithErrorHandler, uploadToImagekit);
+app.post("/api/upload", uploadWithErrorHandler, uploadToImagekit);
+
 app.use(express.json());
 
 app.get("/api", (req: Request, res: Response) => {
@@ -45,8 +59,6 @@ app.get("/api", (req: Request, res: Response) => {
 app.get("/api/", (req: Request, res: Response) => {
   res.json({ message: "API ImageKit jalan" });
 });
-
-app.post("/api/upload", uploadMiddleware, uploadToImagekit);
 
 export default function handler(req: Request, res: Response): void {
   app(req, res);

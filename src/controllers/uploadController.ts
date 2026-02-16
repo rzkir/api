@@ -2,7 +2,26 @@ import { Request, Response } from "express";
 import multer from "multer";
 import { getImagekit } from "../imgkit/imagekit";
 
-const upload = multer({ storage: multer.memoryStorage() });
+const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+
+function sanitizeFileName(name: string): string {
+  const ext = name.replace(/^.*\.([a-zA-Z0-9]+)$/, "$1").toLowerCase() || "jpg";
+  const safe = `profile-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+  return safe;
+}
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_SIZE },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIMES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Tipe file tidak didukung. Gunakan: ${ALLOWED_MIMES.join(", ")}`));
+    }
+  },
+});
 
 export const uploadMiddleware = upload.single("file");
 
@@ -33,13 +52,15 @@ export const uploadToImagekit = async (
       return;
     }
 
+    const safeFileName = sanitizeFileName(file.originalname);
     const result = await getImagekit().upload({
       file: file.buffer,
-      fileName: file.originalname,
+      fileName: safeFileName,
       folder: "/uploads",
     });
 
     res.status(200).json({
+      url: result.url,
       message: "Upload berhasil",
       data: result,
     });
@@ -51,7 +72,9 @@ export const uploadToImagekit = async (
         ? error.message
         : "Terjadi kesalahan yang tidak diketahui";
 
-    res.status(500).json({
+    // Multer validation (e.g. file type) returns 400
+    const status = message.includes("Tipe file") || message.includes("File too large") ? 400 : 500;
+    res.status(status).json({
       message: "Terjadi kesalahan saat upload",
       error: message,
     });
