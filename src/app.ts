@@ -47,3 +47,7 @@ app.get("/api/", (req: Request, res: Response) => {
 });
 
 app.post("/api/upload", uploadMiddleware, uploadToImagekit);
+
+export default function handler(req: Request, res: Response): void {
+  app(req, res);
+}

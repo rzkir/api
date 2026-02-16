@@ -101,4 +101,9 @@ app.post(
   }
 );
 
-export default app;
+export default function handler(
+  req: express.Request,
+  res: express.Response
+): void {
+  app(req, res);
+}
