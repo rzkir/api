@@ -12,12 +12,18 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Izinkan semua origin ketika ALLOWED_ORIGINS kosong (mode dev),
-      // atau hanya origin yang terdaftar di ALLOWED_ORIGINS.
+      const isLocalDev = origin?.startsWith("http://localhost:3000");
+
+      // Izinkan:
+      // - request tanpa origin (server-to-server)
+      // - semua origin jika ALLOWED_ORIGINS kosong
+      // - origin yang ada di ALLOWED_ORIGINS
+      // - selalu izinkan localhost:3000 untuk development
       if (
         !origin ||
         allowedOrigins.length === 0 ||
-        allowedOrigins.includes(origin)
+        allowedOrigins.includes(origin) ||
+        isLocalDev
       ) {
         callback(null, true);
       } else {
