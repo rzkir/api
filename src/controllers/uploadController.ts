@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import multer from "multer";
-import { imagekit } from "../imgkit/imagekit";
+import { getImagekit } from "../imgkit/imagekit";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -33,7 +33,7 @@ export const uploadToImagekit = async (
       return;
     }
 
-    const result = await imagekit.upload({
+    const result = await getImagekit().upload({
       file: file.buffer,
       fileName: file.originalname,
       folder: "/uploads",
